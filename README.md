@@ -10,10 +10,15 @@ python >= 3.8
 edge >= 107.0.1418.35
 ```
 
+
 ## 如何部署？
 
 ```
 pip install requests selenium pyautogui -i https://pypi.tuna.tsinghua.edu.cn/simple
+```
+```
+下载frpc.exe到当前目录
+下载与edge同版本的webdriver到当前目录下msedgedriver.exe
 ```
 
 ### 配置文件
