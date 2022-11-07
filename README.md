@@ -1,6 +1,9 @@
 # freepubip
 利用腾讯云实验室白嫖动态公网ip
 
+### 原理
+利用腾讯云实验室https://cloud.tencent.com/lab/labslist# 的实验机器，一个实验可以使用一个小时的CVM机器，使用selenium自动申请不同的实验，然后自动的切换frp到新的实验机器。
+
 ### 环境要求
 ```
 python >= 3.8
@@ -30,3 +33,5 @@ new_resource_minute = 5
 ; 源地址:源端口->目的端口
 127.0.0.1:3389->3380
 ```
+
+
