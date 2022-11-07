@@ -46,3 +46,8 @@ python main.py
 ### 如何切换edge驱动程序？
 ```
 编辑service.conf文件中的webdriver项，可以设置新的驱动程序位置
+
+### 联系我
+```
+wlkjyy@vip.qq.com
+```
