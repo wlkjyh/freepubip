@@ -5,11 +5,10 @@
 利用腾讯云实验室https://cloud.tencent.com/lab/labslist# 的实验机器，一个实验可以使用一个小时的CVM机器，使用selenium自动申请不同的实验，然后自动的切换frp到新的实验机器。
 
 ### 环境要求
-```
+```fdsg
 python >= 3.8
 edge >= 107.0.1418.35
 ```
-
 
 ## 如何部署？
 
@@ -33,6 +32,15 @@ backend_token = Qwer1234
 webdriver = msedgedriver.exe
 ; 最后多少分钟创建新资源
 new_resource_minute = 5
+
+[dnspod]
+enable = yes
+tokenid = xxxxxxx
+token = xxxxxxxxx
+domain = xxxxx.cn
+; 必须是已经解析了的
+subdomain = frp
+record_type = A
 ```
 映射文件mapping.conf
 ```
