@@ -11,14 +11,14 @@ def createnewconfig(myIpaddr):
 server_addr = '''+myIpaddr+'''
 server_port = ''' + _config['backend_port'] + '''
 token = ''' + _config['backend_token'] + '''
-    '''
+'''
     frps_mapping_template = '''
 [(random)]
 type = tcp
 local_ip = (local_ip)
 local_port = (local_port)
 remote_port = (remote_port)
-    '''
+'''
     if os.path.exists('mapping.conf'):
         with open('mapping.conf', 'r') as f:
             for line in f.readlines():
@@ -49,8 +49,9 @@ remote_port = (remote_port)
                 f.write(frps_template)
     else:
         exit(1)
-
+sub = None
 def worker(frpc_file,frpc_ini):
+    global sub
     if os.path.exists(frpc_file):
         if os.path.exists(frpc_ini):
             if os.path.exists('frpc.pid'):
@@ -58,6 +59,9 @@ def worker(frpc_file,frpc_ini):
                     pid = f.read()
                 if pid:
                     # os.system('kill -9 ' + pid)
+                    if sub is not None:
+                        sub.kill()
+                    # sub.kill()
                     os.system('taskkill /f /pid ' + pid)
 
             sub = subprocess.Popen([frpc_file, '-c', frpc_ini],shell=True)
@@ -74,6 +78,7 @@ def worker(frpc_file,frpc_ini):
         os._exit(0)
 
 def Listen(frpc_file,frpc_ini):
+    time.sleep(0.1)
     lastmd5 = ''
     while True:
         with open('mapping.conf','rb') as f:
@@ -82,10 +87,10 @@ def Listen(frpc_file,frpc_ini):
         with open('frps.ip','r') as f:
             myIpaddr = f.read()
 
-        createnewconfig(myIpaddr)
-
 
         if lastmd5 != md5:
+            print('[info] (%s) %s' % (time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(time.time())),'配置文件发生变化，重新生成frpc.ini'))
+            createnewconfig(myIpaddr)
             print('[info] (%s) %s' % (time.strftime('%Y-%m-%d %H:%M:%S',time.localtime(time.time())),' Reload frpc.ini and restart frpc service'))
             threading.Thread(target=worker,args=(frpc_file,frpc_ini)).start()
             lastmd5 = md5

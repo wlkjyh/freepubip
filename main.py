@@ -12,9 +12,9 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-import pyautogui
+import pyautogui,dnspod
 
-
+dnspod.initrd()
 
 def logging(msg):
     print('[info] (%s) %s' % (time.strftime(
@@ -61,35 +61,16 @@ tenLab = {
     ]
 }
 def newTanzhen():
-    uuid4 = str(uuid.uuid4())
-    url = 'https://ip.iculture.cc/index.php?action=probe_add'
-    postdata = {
-        'add_key': uuid4,
-        'add_probe_page': '404',
-        'add_ip_location_function': 'on',
-        'add_email_notification_function': 'on',
-        'add_email': 'example@test.com',
-        'add_qqshare_title': str(uuid.uuid4()),
-        'add_qqshare_pics': 'https://www.iculture.cc/icon/GGbond.jpg',
-        'add_qqshare_summary': '123',
-        'add_qqshare_desc': '123',
-    }
-    r = requests.post(url, data=postdata)
-    if '生成成功' in r.text:
-        return uuid4
-    return False
+    return str(uuid.uuid4())
 
 def queryTanzhen(uuid4):
-    url = 'https://ip.iculture.cc/probe_query.php?action=probe_query'
-    postdata = {
-        'query_key': uuid4,
-    }
-    r = requests.post(url, data=postdata)
-    ip = re.findall(r'"ip":"(.*?)"', r.text)
-    if ip:
-        return ip[0]
-    return False
-
+    url = 'http://218.78.30.30:57579/getclientip?client_id=' + uuid4
+    # postdata = {
+        # 'query_key': uuid4,
+    # }
+    # requests.packages.urllib3.disable_warnings()
+    r = requests.get(url,verify=False)
+    return r.text
 length = len(tenLab['centos6']) + len(tenLab['centos7'])
 logging('已加载列表' + str(length))
 # 基于mapping.conf生成frpc.ini配置文件
@@ -172,6 +153,7 @@ if '登录' in driver.page_source:
 def getLab(driver):
     label = False
     is_start = False
+    is_init = False
     centos = tenLab['centos6'] + tenLab['centos7']
 
     for lab in centos:
@@ -194,6 +176,9 @@ def getLab(driver):
 
         if '正在试验' in page_source:
             logging('检测到正在的实验，继续进行')
+            
+            driver.maximize_window()
+
             while True:
                 try:
                     location = pyautogui.locateCenterOnScreen('black.png')
@@ -205,6 +190,9 @@ def getLab(driver):
                         continue_lab.click()
                         label = lab
                         is_start = True
+                        is_init = True
+                        # 最小化
+                        driver.minimize_window()
                         break
                 except Exception as e:
                     logging('webdriver报告错误，继续进行')
@@ -242,8 +230,24 @@ def getLab(driver):
 
     driver.refresh()
     time.sleep(1)
+    if is_init:
+        # 历史实验可以直接使用
+        logging('已成功申请到历史实验室')
+        try:
+            driver.swith_to_alert().accept()
+        except Exception as e:
+            logging('没有弹窗，继续进行')
+        time.sleep(5)
+        return label
+    
+    # 新资源需要等待30秒初始化
     logging('已成功申请到可用资源')
-    # 需要等待30秒初始化
+    try:
+        driver.swith_to_alert().accept()
+    except Exception as e:
+        logging('没有弹窗，继续进行')
+    # 等待30秒
+    logging('等待30秒初始化')
     time.sleep(30)
     return label
 
@@ -256,10 +260,6 @@ if lab_instance == False:
         lab_instance = getLab(driver)
         if lab_instance != False:
             break
-
-
-
-
 
 def initInstance(driver):
 
@@ -283,6 +283,7 @@ def initInstance(driver):
             console.send_keys(Keys.ENTER)
             # 杀死frps进程
             console.send_keys('killall frps')
+            console.send_keys(Keys.ENTER)
             break
         except Exception as e:
             logging('发送命令失败，正在重试1')
@@ -309,13 +310,16 @@ def initInstance(driver):
                 time.sleep(10)
                 logging('10秒后重新获取IP探针')
 
-            console.send_keys('curl https://ip.iculture.cc/probe.php?key=' + tanZhen)
+            console.send_keys('curl http://218.78.30.30:57579/get?client_id=' + tanZhen)
             console.send_keys(Keys.ENTER)
             time.sleep(5)
 
 
             install_cmd = 'cd /root && wget https://d.frps.cn/file/frp/v0.37.0/frp_0.37.0_linux_amd64.tar.gz && tar -zxvf frp_0.37.0_linux_amd64.tar.gz && cd frp_0.37.0_linux_amd64 && chmod +x frps && nohup ./frps -c /root/frps.ini &'
             console.send_keys(install_cmd)
+            console.send_keys(Keys.ENTER)
+            logging('正在初始化资源frp服务，请等待5秒')
+            time.sleep(5)
             console.send_keys(Keys.ENTER)
 
             TanzhenIp = False
@@ -324,12 +328,10 @@ def initInstance(driver):
                 if TanzhenIp != False:
                     break
 
-            
-
             return TanzhenIp
 
         except Exception as e:
-            logging('发送命令失败，正在重试3')
+            logging('发送命令失败，正在重试3' + str(e))
             continue
 
 
@@ -376,6 +378,7 @@ def internal(driver):
 # 对资源进行初始化
 myIpaddr = initInstance(driver)
 logging('动态IP：' + myIpaddr)
+dnspod.updateRecord(myIpaddr)
 # 替换frpc
 with open('frpc.ini', 'w') as f:
     f.write(frpc_config.replace('myipaddr', myIpaddr))
@@ -383,6 +386,7 @@ with open('frpc.ini', 'w') as f:
 with open('frps.ip', 'w') as f:
     f.write(myIpaddr)
 
+# keepalive.run(driver)
 threading.Thread(target=frpc_worker.Listen,args=('frpc.exe','frpc.ini')).start()
 
 while True:
@@ -402,6 +406,7 @@ while True:
     logging('开始初始化新资源')
     myIpaddr = initInstance(driver)
     logging('动态IP：' + myIpaddr)
+    dnspod.updateRecord(myIpaddr)
     frpc_worker.createnewconfig(myIpaddr)
     with open('frps.ip', 'w') as f:
         f.write(myIpaddr)
